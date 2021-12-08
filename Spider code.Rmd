@@ -1,0 +1,174 @@
+---
+title: "Spider species in Ecuador for TidyTuesday Week 50"
+author: "Sofia Carpio"
+date: "12/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+install.packages("tidytuesdayR")
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(tidyverse)
+library(ggExtra)
+library(ggdark)
+
+tuesdata <- tidytuesdayR::tt_load('2021-12-07')
+spiders <- tuesdata$spiders
+
+
+
+```
+
+## Tidy Tuesday Week 50: Data from the World Spider Database
+
+```{r pressure, echo=FALSE}
+
+Ecuador_spiders_year <- spiders %>%
+  filter(stringr::str_detect(distribution, "Ecuador")) %>%
+  group_by(year) %>%
+  summarise(n_species = n()) %>%
+  ungroup()
+
+Ecuador_spiders_family <- spiders %>%
+  filter(stringr::str_detect(distribution, "Ecuador")) %>%
+  group_by(family) %>%
+  summarise(n_species = n()) %>%
+  ungroup()
+
+Ecuador_spiders_family <- as.data.frame(Ecuador_spiders_family)
+
+Ecuador_spiders_family <- Ecuador_spiders_family[rev(order(Ecuador_spiders_family$n_species)), ]
+
+Ecuador_spiders_year <- as.data.frame(Ecuador_spiders_year)
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+
+Linegraph_Ecuador <- ggplot(data = Ecuador_spiders_year) +
+  geom_line(aes(x = year, y = n_species), color = "mediumpurple1") +
+  scale_y_continuous(limits = c(0,60), breaks = seq(0,60,10)) +
+  scale_x_continuous(breaks = seq(1820,2030,20)) +
+  theme_minimal() +
+  labs(title = "Number of registered spider species found in Ecuador, by year",
+       subtitle = "Period: 1829 - 2021",
+       x = "Year",
+       y = "Number of species",
+       caption = "@Sofl77 | Source: World Spider Database") 
+
+Linegraph_Ecuador_darks <- Linegraph_Ecuador +
+  ggdark::dark_theme_minimal() +
+  theme(text = element_text(size=12),
+        plot.title = element_text(size = 16),
+        plot.subtitle = element_text(size = 14),
+        plot.caption = element_text(size = 12),
+        axis.text.x = element_text(size = 14))
+
+Linegraph_Ecuador_darks
+
+ggsave("Spider_species_year2.jpeg", width = 14, height = 9)
+
+```
+
+```{r}
+
+spiders$Ecuador <- str_detect(spiders$distribution, "Ecuador")
+Ecuador <- as.data.frame(Ecuador)
+Ecuador_spiders <- subset(spiders, spiders$Ecuador == TRUE)
+dim(Ecuador_spiders)
+
+
+Ecuador_spiders$OnlyEcuador <- ifelse(Ecuador_spiders$distribution == "Ecuador" |
+                                        Ecuador_spiders$distribution == "Ecuador (Galapagos Is.)", 1, 0)
+
+Ecuador_spiders$Galapagos <- ifelse(Ecuador_spiders$distribution == "Ecuador (Galapagos Is.)", 1, 0)
+
+
+dim(Ecuador_spiders)   # 807
+class(Ecuador_spiders)
+Ecuador_spiders <- as.data.frame(Ecuador_spiders)
+sum(Ecuador_spiders[,"OnlyEcuador"])  # 553
+sum(Ecuador_spiders[,"Galapagos"])    # 79
+
+# Ecuador and other countries: 254
+# Only Ecuador: 553
+# Only Galapagos islands: 79
+
+Galapagos <- subset(Ecuador_spiders, Ecuador_spiders$Galapagos == 1)
+table(Galapagos$family)
+Ecuador <- subset(Ecuador_spiders, Ecuador_spiders$OnlyEcuador == 1)
+
+Ecuador_family <- Ecuador %>%
+  group_by(family) %>%
+  summarise(n_species = n())
+
+Ecuador_family <- Ecuador_family[rev(order(Ecuador_family$n_species)),]
+
+Ecuador_family$Distr <- "Only in Ecuador"
+
+Galapagos_family <- Galapagos %>%
+  group_by(family) %>%
+  summarise(n_species = n())
+
+Galapagos_family <- Galapagos_family[rev(order(Galapagos_family$n_species)),]
+Galapagos_family$Distr <- "Only Galapagos isl."
+
+Ecuador_other_countrs <- subset(Ecuador_spiders, Ecuador_spiders$OnlyEcuador == 0)
+
+Ecuador_other_countrs_family <- Ecuador_other_countrs %>%
+  group_by(family) %>%
+  summarise(n_species = n())
+
+Ecuador_other_countrs_family <- Ecuador_other_countrs_family[rev(order(Ecuador_other_countrs_family$n_species)),]
+
+Ecuador_other_countrs_family$Distr <- "Ecuador and other countries"
+
+Total_EC_spiders <- rbind(Ecuador_family,Galapagos_family,Ecuador_other_countrs_family)
+
+sum(Ecuador_spiders_family$n_species)
+exclude_families <- Ecuador_spiders_family$family[which(Ecuador_spiders_family$n_species == 1)]
+
+which(Total_EC_spiders$family %in% exclude_families)
+
+Total_EC_spiders_f <- Total_EC_spiders[-c(which(Total_EC_spiders$family %in% exclude_families)),]
+```
+
+
+```{r}
+
+G_Nber_species_by_family_EC <- ggplot(data = Total_EC_spiders_f,
+                                      aes(x = family, 
+                                          y=n_species,
+                                          fill = Distr)) +
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette = "BuPu", direction = 1) +
+  scale_y_continuous(limits = c(0,160)) +
+  labs(title = "Number of spider species by family and spatial distribution in Ecuador",
+       subtitle = "(1) Only in Ecuador, (2) only in the Galapagos, and (3) in Ecuador and other countries",
+       x = "Family",
+       y = "Number of species",
+       fill = "Distribution",
+       caption = "Note: Families with only one species were not included. The total number of spider species in Ecuador is 807. \n@Sofl77 | Source: World Spider Database") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+G_Ecuador_spiders_dark <- G_Nber_species_by_family_EC +
+  ggdark::dark_theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        legend.position = "bottom") +
+   theme(text = element_text(size=12),
+        legend.text = element_text(size = 10),
+        plot.title = element_text(size = 16),
+        plot.subtitle = element_text(size = 14),
+        plot.caption = element_text(size = 12),
+        axis.text.x = element_text(size = 14))
+
+ggsave("Spiders_Ecuador2.jpeg", width = 14, height = 8)
+```
+
