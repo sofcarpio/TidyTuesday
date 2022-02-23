@@ -48,7 +48,9 @@ Ecuador_spiders_year <- as.data.frame(Ecuador_spiders_year)
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
 
 ```{r}
 
@@ -80,7 +82,7 @@ ggsave("Spider_species_year2.jpeg", width = 14, height = 9)
 ```{r}
 
 spiders$Ecuador <- str_detect(spiders$distribution, "Ecuador")
-Ecuador <- as.data.frame(Ecuador)
+
 Ecuador_spiders <- subset(spiders, spiders$Ecuador == TRUE)
 dim(Ecuador_spiders)
 
@@ -104,6 +106,8 @@ sum(Ecuador_spiders[,"Galapagos"])    # 79
 Galapagos <- subset(Ecuador_spiders, Ecuador_spiders$Galapagos == 1)
 table(Galapagos$family)
 Ecuador <- subset(Ecuador_spiders, Ecuador_spiders$OnlyEcuador == 1)
+
+Ecuador <- as.data.frame(Ecuador)
 
 Ecuador_family <- Ecuador %>%
   group_by(family) %>%

@@ -1,0 +1,330 @@
+---
+title: "TidyTuesday Week 8 2022"
+author: "Sofía Carpio"
+date: "2/22/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(tidyverse)
+library(ggExtra)
+library(ggsci)
+
+tuesdata <- tidytuesdayR::tt_load('2022-02-22')
+
+freedomdata <- tuesdata$freedom
+
+#Data exploration
+
+View(freedomdata)
+View(freedomdata[which(freedomdata$country == "Israel"),])
+View(freedomdata[which(freedomdata$country == "Russian Federation"),])
+View(freedomdata[which(freedomdata$country == "China"),])
+View(freedomdata[which(freedomdata$country == "Saudi Arabia"),])
+
+resumen_region <- aggregate(freedomdata$CL, by = list(freedomdata$Region_Name), FUN = mean)
+class(resumen_region)
+resumen_region$PR <- aggregate(freedomdata$PR, by = list(freedomdata$Region_Name), FUN = mean)
+View(resumen_region)
+
+resumen_pais <- aggregate(freedomdata$CL, by = list(freedomdata$country), FUN = mean)
+resumen_pais$PR <- aggregate(freedomdata$PR, by = list(freedomdata$country), FUN = mean)
+View(resumen_pais)
+
+unique(freedomdata$country[which(freedomdata$Status == "NF")])
+unique(freedomdata$country[which(freedomdata$Status == "PF")])
+unique(freedomdata$country[which(freedomdata$Status == "F")])
+
+freedom_2020 <- subset(freedomdata, freedomdata$year == 2020)
+table(freedom_2020$Region_Name, freedom_2020$is_ldc, useNA = "ifany")
+table(freedom_2020$Region_Name, freedom_2020$Status, useNA = "ifany")
+
+#Adding GDP pc data
+
+PIBpc <- read.csv("GDP_PCAP/GCP P CAPITA 2020.csv", skip = 4)
+
+View(PIBpc)
+colnames(PIBpc)
+PIBpc_2020 <- PIBpc[,c("Country.Name","Country.Code", "X2020")]
+View(PIBpc_2020)
+intersect(freedom_2020$country, PIBpc$Country.Name)
+class(freedom_2020)
+class(PIBpc_2020)
+freedom_2020 <- as.data.frame(freedom_2020)
+colnames(PIBpc_2020)[1] <- "country"
+colnames(freedom_2020)
+
+freedom2020_pib <- merge(freedom_2020, PIBpc_2020, by = "country", all.x = TRUE)
+
+View(freedom2020_pib)
+list_no_info <- freedom2020_pib$country[which(is.na(freedom2020_pib$X2020)==TRUE)]
+
+# Paises que no tienen un valor de PIB pc para el 2020: 
+#"Andorra","Eritrea","Liechtenstein","San Marino",
+#"South Sudan","Syrian Arab Republic","Turkmenistan"
+
+
+PIBpc_2020$country[which(PIBpc_2020$country == "Bahamas, The")] <- "Bahamas"
+PIBpc_2020$country[which(PIBpc_2020$country == "Bolivia")] <- "Bolivia (Plurinational State of)"
+freedom_2020$country[which(freedom_2020$country=="CÃƒÂ´te dÃ¢â‚¬â„¢Ivoire")] <- "Cote d'Ivoire"
+freedom_2020$country[which(freedom_2020$country=="Congo")] <- "Congo, Rep."
+freedom_2020$country[which(freedom_2020$country=="Democratic Republic of the Congo")] <- "Congo, Dem. Rep."
+freedom_2020$country[which(freedom_2020$country=="Czechia")] <- "Czech Republic"
+freedom_2020$country[which(freedom_2020$country=="Democratic People's Republic of Korea")] <- "Korea, Dem. People's Rep."
+PIBpc_2020$country[which(PIBpc_2020$country == "Egypt, Arab Rep.")] <- "Egypt"
+PIBpc_2020$country[which(PIBpc_2020$country == "Gambia, The")] <- "Gambia"
+
+freedom_2020$country[which(freedom_2020$country=="Iran (Islamic Republic of)")] <- "Iran, Islamic Rep."
+
+PIBpc_2020$country[which(PIBpc_2020$country == "Kyrgyz Republic")] <- "Kyrgyzstan"
+
+freedom_2020$country[which(freedom_2020$country=="Lao People's Democratic Republic")] <- "Lao PDR"
+freedom_2020$country[which(freedom_2020$country=="Micronesia (Federated States of)")] <- "Micronesia, Fed. Sts."
+freedom_2020$country[which(freedom_2020$country=="Republic of Korea")] <- "Korea, Rep."
+freedom_2020$country[which(freedom_2020$country=="Republic of Moldova")] <- "Moldova"
+freedom_2020$country[which(freedom_2020$country=="Saint Kitts and Nevis")] <- "St. Kitts and Nevis"
+freedom_2020$country[which(freedom_2020$country=="Saint Lucia")] <- "St. Lucia"
+freedom_2020$country[which(freedom_2020$country=="Saint Vincent and the Grenadines")] <- "St. Vincent and the Grenadines"
+
+PIBpc_2020$country[which(PIBpc_2020$country == "Slovak Republic")] <- "Slovakia"
+
+freedom_2020$country[which(freedom_2020$country=="United Kingdom of Great Britain and Northern Ireland")] <- "United Kingdom"
+freedom_2020$country[which(freedom_2020$country=="United Republic of Tanzania")] <- "Tanzania"
+freedom_2020$country[which(freedom_2020$country=="United States of America")] <- "United States"
+freedom_2020$country[which(freedom_2020$country=="Venezuela (Bolivarian Republic of)")] <- "Venezuela, RB"
+PIBpc_2020$country[which(PIBpc_2020$country == "Vietnam")] <- "Viet Nam"
+PIBpc_2020$country[which(PIBpc_2020$country == "Yemen, Rep.")] <- "Yemen"
+
+freedom2020_pib <- merge(freedom_2020, PIBpc_2020, by = "country", all.x = TRUE)
+list_no_info <- freedom2020_pib$country[which(is.na(freedom2020_pib$X2020)==TRUE)]
+
+which(PIBpc_2020$country == "Yemen")
+which(freedom_2020$country == "Yemen")
+
+PIBpc_2020$country[which(PIBpc_2020$country %in% list_no_info)]
+
+plot(freedom2020_pib$X2020, freedom2020_pib$CL)
+plot(freedom2020_pib$X2020, freedom2020_pib$PR)
+plot(freedom2020_pib$CL, freedom2020_pib$PR)
+
+table(freedom2020_pib$Region_Name, freedom2020_pib$Region_Code, useNA = "ifany")
+
+freedom2020_pib$NroRegion <- ifelse(freedom2020_pib$Region_Name == "Africa",1,
+                                    ifelse(freedom2020_pib$Region_Name == "Americas",2,
+                                           ifelse(freedom2020_pib$Region_Name == "Asia",3,
+                                                  ifelse(freedom2020_pib$Region_Name == "Europe",4,
+                                                         ifelse(freedom2020_pib$Region_Name == "Oceania", 5, NA)))))
+
+freedom2020_pib$Status <- factor(freedom2020_pib$Status, levels = c("F","PF","NF"))
+
+
+
+
+```
+
+## Including Plots
+
+
+You can also embed plots, for example:
+
+
+
+```{r pressure, echo=FALSE}
+scaleFUN <- function(x) format(x, big.mark = ".", scientific = FALSE)
+
+# Civil liberties
+
+G_PIB_freedom <-  ggplot(data = freedom2020_pib, 
+                         aes(x = X2020, y = CL, fill = Region_Name)) +
+                  geom_point(position = "jitter", 
+                             size = 3, shape = 21,
+                             color = "black") +
+  scale_fill_npg() +
+  theme_bw()
+
+
+
+G_PIB_freedom_status <-  ggplot(data = freedom2020_pib, 
+                         aes(x = X2020, y = CL, fill = Region_Name)) +
+                  geom_point(position = "jitter", 
+                             size = 3, shape = 21,
+                             color = "black") +
+  scale_fill_aaas(labels = c("Free","Partially Free","Not Free")) +
+  scale_y_continuous(breaks = seq(0,8,1), 
+                     limits = c(0,8), expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(0,175000,25000), 
+                     limits = c(0,175000),
+                     labels = scaleFUN) +
+  labs(title = "Freedom Status and GDP per capita by country",
+       subtitle = "2020",
+       x = "GDP per capita (current USD)",
+       y = "Civil Liberties\n(1 best, 7 worst)",
+       caption = "Source: World Freedom Index (UN and Freedom House) | World Bank\nGraphic: Sofía Carpio @Sofl77 \nTidy Tuesday Week 8",
+       fill = "Freedom Status") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0, size = 13, face = "bold"),
+        plot.subtitle = element_text(hjust = 0, size = 11),
+        plot.caption = element_text(hjust = 0, size = 10),
+        axis.title.x = element_text(size = 11),
+        axis.title.y = element_text(size = 11))
+
+ggsave("PIBpc_FreedomStatus.jpeg", width = 10, height = 7)
+
+
+
+G_PIB_freedom_status_wout_Monaco <-  ggplot(data = freedom2020_pib[-115,], 
+                         aes(x = X2020, y = CL, fill = Region_Name)) +
+                  geom_point(position = "jitter", 
+                             size = 3, shape = 21,
+                             color = "black") +
+  scale_fill_npg() +
+  scale_y_continuous(breaks = seq(0,8,1), 
+                     limits = c(0,8), expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(0,125000,25000), 
+                     limits = c(0,125000),
+                     labels = scaleFUN) +
+  labs(title = "Civil Liberties and GDP per capita by country, 2020",
+       subtitle = "This graph plots country GDP per capita and its Civil Liberties score.\nIt also shows a country's region.",
+       x = "GDP per capita (current USD)",
+       y = "Civil Liberties\n(1 best, 7 worst)",
+       caption = "Source: World Freedom Index (UN and Freedom House) | World Bank\nGraphic: Sofía Carpio @Sofl77 \nTidy Tuesday Week 8\nNote: The following countries were excluded as there was no GDP pc information for 2020:\nAndorra, Eritrea, Korea, DPR, Liechtenstein, San Marino, South Sudan, Syrian, Turkmenistan, Venezuela RB,Yemen.",
+       fill = "Region") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0, size = 13, face = "bold"),
+        plot.subtitle = element_text(hjust = 0, size = 11),
+        plot.caption = element_text(hjust = 0, size = 10),
+        axis.title.x = element_text(size = 11),
+        axis.title.y = element_text(size = 11))
+
+G_PIB_freedom_status_wout_Monaco
+ggsave("PIBpc_Civil_Liberties_Region_woutMonaco.jpeg", width = 10, height = 7)
+
+#Political Rights
+
+G_PIB_freedom_status_wout_Monaco <-  ggplot(data = freedom2020_pib[-115,], 
+                         aes(x = X2020, y = PR, fill = Status)) +
+                  geom_point(position = "jitter", 
+                             size = 3, shape = 21,
+                             color = "black") +
+  scale_fill_aaas(labels = c("Free","Partially Free","Not Free")) +
+  scale_y_continuous(breaks = seq(0,8,1), 
+                     limits = c(0,8), expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(0,125000,25000), 
+                     limits = c(0,125000),
+                     labels = scaleFUN) +
+  labs(title = "Freedom and GDP per capita by country, 2020",
+       subtitle = "This graph plots country GDP per capita and its Political Rights score.\nIt also shows its,'Freedom status',as measured by the Freedom Report.",
+       x = "GDP per capita (current USD)",
+       y = "Political Rights\n(1 best, 7 worst)",
+       caption = "Source: World Freedom Index (UN and Freedom House) | World Bank\nGraphic: Sofía Carpio @Sofl77 \nTidy Tuesday Week 8\nNote: The following countries were excluded as there was no GDP pc information for 2020:\nAndorra, Eritrea, Korea, DPR, Liechtenstein, San Marino, South Sudan, Syrian, Turkmenistan, Venezuela RB,Yemen.",
+       fill = "Freedom Status") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0, size = 13, face = "bold"),
+        plot.subtitle = element_text(hjust = 0, size = 11),
+        plot.caption = element_text(hjust = 0, size = 10),
+        axis.title.x = element_text(size = 11),
+        axis.title.y = element_text(size = 11))
+
+ggsave("PIBpc_FreedomStatus_woutMonaco.jpeg", width = 10, height = 7)
+
+freedom2020_pib$country[which(freedom2020_pib$CL == 4 & freedom2020_pib$X2020 > 50000)]   # 153 Singapore
+freedom2020_pib$country[which(freedom2020_pib$CL == 5 & freedom2020_pib$X2020 > 40000)]   # 141 Qatar 
+freedom2020_pib$country[which(freedom2020_pib$CL == 7 & freedom2020_pib$X2020 > 20000)]   # 148 Saudi Arabia 
+which(freedom2020_pib$country == "United States")   #185
+which(freedom2020_pib$country == "Ecuador")   #51
+which(freedom2020_pib$country == "China")   #36
+which(freedom2020_pib$country == "Russian Federation")   #143
+
+
+freedom2020_pib$country[which(freedom2020_pib$CL == 7 & freedom2020_pib$X2020 > 20000)]   # 148 Saudi Arabia 
+freedom2020_pib[141,]
+#[c(36,51,141,143,148,153,185),]
+
+freedom2020_pib$country[143] <- "Russia"
+
+G_PIB_freedom_status_wout_Monaco_labels <- G_PIB_freedom_status_wout_Monaco +
+  geom_text(data = freedom2020_pib[c(185),],
+              aes(x = X2020, y = PR, label = country),
+            size = 3, color = "black") +
+  geom_text(data = freedom2020_pib[c(143),],
+              aes(x = X2020+100, y = PR+0.15, label = country),
+            size = 3, color = "black") +
+  geom_text(data = freedom2020_pib[153,],
+              aes(x = X2020+100, y = PR+0.1, label = country),
+            size = 3, color = "black") +
+  geom_text(data = freedom2020_pib[c(148),],
+              aes(x = X2020+100, y = PR+0.1, label = country),
+            size = 3, color = "black") +
+   geom_text(data = freedom2020_pib[c(51),],
+              aes(x = X2020+100, y = PR-0.35, label = country),
+            size = 3, color = "black") +
+  geom_text(data = freedom2020_pib[c(141),],
+              aes(x = X2020+200, y = PR-0.2, label = country),
+            size = 3, color = "black") +
+  geom_text(data = freedom2020_pib[c(36,102),],
+              aes(x = X2020+500, y = PR-0.15, label = country),
+            size = 3, color = "black")
+
+
+ggsave("G_PIB_freedom_status_wout_Monaco_labels.jpeg", width = 11, height = 7)
+  ```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+G_PIB_freedom_status_wout_Monaco_jitters <-  ggplot(data = freedom2020_pib[-115,], 
+                         aes(x = X2020, y = PR, fill = Status)) +
+                  geom_point(size = 3, shape = 21,
+                             color = "black") +
+  scale_fill_aaas(labels = c("Free","Partially Free","Not Free")) +
+  scale_y_continuous(breaks = seq(0,8,1), 
+                     limits = c(0,8), expand = c(0,0)) +
+  scale_x_continuous(breaks = seq(0,125000,25000), 
+                     limits = c(0,125000),
+                     labels = scaleFUN) +
+  labs(title = "Freedom and GDP per capita by country, 2020",
+       subtitle = "This graph plots country GDP per capita and its Civil Liberties score.\nIt also shows its,'Freedom status',as measured by the Freedom Report.",
+       x = "GDP per capita (current USD)",
+       y = "Political Rights\n(1 best, 7 worst)",
+       caption = "Source: World Freedom Index (UN and Freedom House) | World Bank\nGraphic: Sofía Carpio @Sofl77 \nTidy Tuesday Week 8\nNote: The following countries were excluded as there was no GDP pc information for 2020:\nAndorra, Eritrea, Korea, DPR, Liechtenstein, San Marino, South Sudan, Syrian, Turkmenistan, Venezuela RB,Yemen.",
+       fill = "Freedom Status") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0, size = 13, face = "bold"),
+        plot.subtitle = element_text(hjust = 0, size = 11),
+        plot.caption = element_text(hjust = 0, size = 10),
+        axis.title.x = element_text(size = 11),
+        axis.title.y = element_text(size = 11))
+
+ggsave("G_PIB_freedom_status_wout_Monaco_jitters.jpeg", width = 11, height = 7)
+
+
+
+freedom2020_pib$country[which(freedom2020_pib$X2020 == max(freedom2020_pib$X2020[-c(115,102)], na.rm = TRUE))]  #Monaco (173.688,2), Luxembourg
+freedom2020_pib$X2020[c(115,102)]
+
+
+CL_region <- table(freedom2020_pib$Region_Name, freedom2020_pib$CL, useNA = "ifany")
+CL_region <- as.data.frame(CL_region)
+
+PR_region <- table(freedom2020_pib$Region_Name, freedom2020_pib$PR, useNA = "ifany")
+PR_region <- as.data.frame(PR_region)
+
+
+CL_per_region
+```
+

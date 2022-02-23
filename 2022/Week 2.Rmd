@@ -1,0 +1,107 @@
+---
+title: "Tidy Tuesday Week 2 2022"
+author: "Sofia Carpio"
+date: "1/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(tidyverse)
+library(ggExtra)
+
+tuesdata <- tidytuesdayR::tt_load('2022-01-11')
+colony <- tuesdata$colony
+stressor <- tuesdata$stressor
+
+View(colony)
+View(stressor)
+
+table(colony$year, colony$colony_n, useNA = "ifany")
+View(colony[,c("year","state","colony_n")])
+
+N_state <- aggregate(colony$colony_n,
+                     by = list(colony$year, colony$state), 
+                     FUN = sum)
+colnames(N_state) <- c("year","state","colony_n")
+US <- filter(N_state, state == "United States")
+
+US <- filter(N_state, state == "United States")
+Yr2015 <- filter(N_state, year == 2015)
+Yr2015 <- Yr2015[order(Yr2015$colony_n),]
+
+N_state <- colony %>%
+  #filter(colony, year == 2015) %>%
+  group_by(year, state)
+
+yr2015 <- subset(colony, colony$year == 2015)
+class(colony)
+colony <- data.frame(colony)
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r }
+
+US_stressor <- stressor %>%
+  filter(state == "United States")
+
+US_stressor$Quarter <- ifelse(US_stressor$months == "January-March","1",
+                              ifelse(US_stressor$months == "April-June", "2",
+                                     ifelse(US_stressor$months == "July-September", "3",
+                                            ifelse(US_stressor$months == "October-December","4", "none"))))
+
+US_stressor$YrQuarter <- paste(US_stressor$year,"-",US_stressor$Quarter, sep = "")
+
+#install.packages("zoo")
+library(zoo)
+
+US_stressor$YrQuarter <- as.yearqtr(US_stressor$YrQuarter)
+class(US_stressor$YrQuarter)
+
+G_stressor <- ggplot(data = US_stressor, 
+                     aes(x = YrQuarter, y = stress_pct, fill = stressor)) +
+  geom_bar(stat = "identity") +
+  theme_bw() + 
+  scale_fill_brewer(palette = "YlOrRd", direction = -1)
+
+library(scales)
+#install.packages("viridisLite")
+library(viridisLite)
+
+ticks <- unique(US_stressor$YrQuarter)
+length(ticks)
+
+G_stressor_2 <- ggplot(data = US_stressor, 
+                     aes(x = YrQuarter, y = stress_pct, fill = stressor)) +
+  geom_bar(stat = "identity") +
+  theme_bw() + 
+  scale_fill_manual(values = rev(viridis(n = 6))) +
+  #scale_fill_brewer(palette = "YlOrRd", direction = -1) 
+  #scale_x_discrete(breaks = 25)
+  coord_polar()
+
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
