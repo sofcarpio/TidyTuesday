@@ -1,0 +1,166 @@
+---
+title: "Week 12"
+author: "Sofía Carpio"
+date: "3/21/2022"
+output: html_document
+---
+
+## Week 12 in Tidy Tuesday
+
+Below you may find the code for the making of the plot for Tidy Tuesday's Week 12. This data set involved babynames in the US. I was curious about the popularity in the US compared to that in my home country, Ecuador. The National Statistics Institute has an application for visualizing popularity trends in registered names. I combined both data in this week's data visualization. 
+
+**Data Wrangling **
+
+```{r setup }
+knitr::opts_chunk$set(echo =  TRUE)
+
+setwd("D:/ONEDRIVE FFS/OneDrive/Documents/GitHub/TidyTuesday/2022")
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(tidyverse)
+library(ggExtra)
+library(ggsci)
+library(scales)
+library(showtext)
+library(RColorBrewer)
+
+
+```
+
+**Exploring color palettes**
+
+```{r}
+
+#font:
+
+#font.add.google(name = "Ramaraja")
+#showtext.auto()
+
+tuesdata <- tidytuesdayR::tt_load('2022-03-22', encoding = "UTF-8")
+babynames <- tuesdata$babynames
+View(babynames)
+
+sort(unique(babynames$name))[82800:82900]
+
+Sofia <- c("Sophi","Sophia","Sophiah","Sophie",
+           "Soffia","Soffie","Sofhia","Sofi","Sofia",
+           "Sofiah","Sofya","Sofie","Sofee")
+
+Sofia <- c("Sofia","Sophia")
+
+SofiaDB <- babynames %>%
+  filter(name %in% Sofia)
+ 
+View(SofiaDB)
+
+SofiaDBf <- SofiaDB %>%
+  group_by(year) %>%
+  summarise(across(c(n,prop), list(sum = sum)))
+
+View(SofiaDBf)
+
+SofiaDBf_1990_2017 <- SofiaDBf %>%
+  filter(year >= 1990)
+
+View(SofiaDBf_1990_2017)
+
+Sofia_EC <- read.csv(file = "Week 12/Frecuencia_inscritos_Sofia.csv", 
+                     header = TRUE, sep = ";",
+                     encoding = "UTF-8")
+View(Sofia_EC)
+colnames(Sofia_EC)[1] <- "year"
+
+Sofia_EC <- Sofia_EC[,c("year", "Nacidos_vivos","Inscritos_Sofia","Inscritos_Sophia","Prop","Prop_mujeres")]
+
+df <- merge(SofiaDBf_1990_2017, Sofia_EC, 
+            by = "year", 
+            all.y = TRUE)
+View(df)
+
+df <- df %>%
+  filter(year <= 2017)
+  
+```
+
+**Combining both data sets**
+
+```{r}
+
+
+
+colnames(df)
+df2 <- df[,c("year","n_sum","prop_sum")]
+
+df2$Country <- "US"
+
+df$sum <- df$Inscritos_Sofia + df$Inscritos_Sophia
+
+df3 <- df[,c("year","sum","Prop")]
+df3$Country <- "Ecuador"
+colnames(df3) <- colnames(df2)
+
+df3 <- df3 %>%
+  mutate_at("prop_sum", str_replace, ",",".")
+
+df3$prop_sum <- as.numeric(df3$prop_sum)
+
+df4 <- rbind(df2,df3)
+
+#color palettes:
+
+paleta <- brewer.pal(11,"Spectral")
+PuRed <- brewer.pal(9, "PuRd")
+barplot(rep(1,11), col = paleta)
+barplot(rep(1,9), col = PuRed)
+
+df2$year[which(df2$prop_sum == max(df2$prop_sum))] #2013  0.01580336
+df3$year[which(df3$prop_sum == max(df3$prop_sum))] #2015  0.009673
+
+0.01580336/0.009673  #1,6 veces mas popular en EE. UU. que en Ecuador
+
+
+```
+
+**The final Data Visualization**
+
+```{r}
+
+G_line <- ggplot(data = df4, aes(x = year, y= prop_sum, color = Country)) +
+  geom_line(size = 1.5) +
+  scale_color_manual(values = paleta[9:10]) +
+  scale_x_continuous(breaks = seq(1990,2017,1), expand = c(0,0)) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal() +
+  labs(title = "Popularity of the name 'Sof(ph)ia' in the US and Ecuador",
+       subtitle = "Period: 1990 - 2017",
+       x = "Year",
+       y = "Percent share in total newborns registered",
+       caption = "Source: [babynames] Hadley Wickam | Inst.Nacional Estadística y Censos (Ecuador)\nPlot: Sofía Carpio @Sofl77\n \nNote: The US data provides the 'Proportion of total births for that year' while the Ecuadorian data takes into account newborns registered in the same year of birth.\nOther statistics include babies registered up until the end of the following year, or any year.") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme(plot.background = element_rect(fill = "ivory",
+                                        color = "ivory"),
+        panel.grid = element_blank()) +
+  
+  theme(plot.margin = margin(rep(15, 4)),
+        plot.title = element_text(hjust = 0, size = 28, face = "bold", color = PuRed[9]),
+        plot.subtitle = element_text(hjust = 0, size = 14, color = PuRed[9]),
+        plot.caption = element_text(hjust = 0, size = 13, color = PuRed[9]),
+        axis.title.x = element_text(size = 12, color = PuRed[9]),
+        axis.title.y = element_text(size = 12, color = PuRed[9]),
+        axis.text = element_text(color = PuRed[9])) +
+  annotate(geom = "text", x = 1991, y = 0.01,
+           label = "In 2013, at the peak of its popularity in the US,\nthe name Sofia (& Sophia) accounted for 1,58% of all\nregistered babynames. In Ecuador, it reached its peak two years later\nand comprised 0.97% of all registered babynames.\nAt its height, the name was 1.6 times more popular in\nthe US than in Ecuador.",
+           size = 4.5, hjust = 0, vjust = 0,
+           lineheight = 0.9, color = PuRed[9])
+  
+G_line
+
+
+
+
+
+```
+
