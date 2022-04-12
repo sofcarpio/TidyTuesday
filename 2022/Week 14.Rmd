@@ -1,0 +1,257 @@
+---
+title: "Week 14"
+author: "Sofía Carpio"
+date: "4/11/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(tidyverse)
+library(ggExtra)
+library(ggsci)
+library(scales)
+library(showtext)
+library(RColorBrewer)
+library(viridis)
+#install.packages("ggraph")
+library(ggraph)
+library(igraph)
+#install.packages("packcircles")
+library(packcircles)
+#install.packages("ggiraph")
+library(ggiraph)
+library(extrafont)
+
+```
+
+## Week 14 in Tidy Tuesday
+
+Below you may find the code for the making of the plot for Tidy Tuesday's Week 14. This data set contains a survey to 741 local digitally focused news organizations in the US and Canada. It shows the growth in news organizations as well as some variables related to their content and financial information. I was interested the organization's current tax status and seeing how of them were non-profit. 
+
+```{r }
+news_orgs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-04-05/news_orgs.csv')
+View(news_orgs)
+
+
+
+```
+
+**Exploring the data set** 
+
+
+```{r}
+table(news_orgs$country, useNA = "ifany")
+
+table(news_orgs$tax_status_current, useNA = "ifany")
+
+table(news_orgs$primary_language, useNA = "ifany")
+table(news_orgs$primary_language_other, useNA = "ifany")
+which(news_orgs$primary_language == "Spanish")
+
+news_orgs$city[which(news_orgs$primary_language == "Spanish")]
+
+sp <- c("Spanish","Bilingual (Spanish & English)","Spanish, English")
+
+spanish <- news_orgs %>%
+  filter(primary_language %in% sp)
+
+View(spanish)
+table(spanish$state, useNA = "ifany")
+
+table(news_orgs$tax_status_current, useNA = "ifany")
+
+table(news_orgs$year_founded, useNA = "ifany")
+
+#table(news_orgs$city, useNA = "ifany")
+#table(news_orgs$geographic_area, useNA = "ifany")
+
+
+news_yr <- news_orgs %>%
+  count(year_founded)
+
+```
+
+
+**Data Wrangling for Plot 1**
+
+```{r}
+
+#Font:
+
+loadfonts(device = "win")
+windowsFonts()
+
+#Paleta de colores
+
+paleta <- brewer.pal(5, "Purples")
+barplot(rep(1,5), col = paleta)
+
+paleta2 <- brewer.pal(10, "RdYlBu")
+barplot(rep(1,10), col = paleta2)
+
+Non_Profit2 <- c("Nonprofit 501c(3) or Canadian nonprofit", "Not for Profit", "Under umbrella of a 501c(3)")
+
+news_orgs$STATUS2 <- ifelse(news_orgs$tax_status_current %in% Non_Profit2, "Nonprofit",
+                            news_orgs$tax_status_current)
+
+status <- news_orgs %>%
+  group_by(STATUS2) %>%
+  count()
+  
+s_packing <- circleProgressiveLayout(status$n, sizetype = 'area')
+s_packing$radius <- 0.95*s_packing$radius
+
+status <- cbind(status, s_packing)
+dat.status <- circleLayoutVertices(s_packing, n=50)
+
+status$STATUS2[which(is.na(status$STATUS2) ==TRUE)] <- "No information"
+
+status$label <- ifelse(status$STATUS2 == "Sole Proprietor/no specific tax status", "Sole\nProprietor/\nno specific\n tax status", 
+                       ifelse(status$STATUS2 == "Public-benefit corporation","Public-\nbenefit\ncorp.",
+                              ifelse(status$STATUS2 == "Partnership", "Partner-\nship", 
+                                     ifelse(status$STATUS2 == "No information","No\ninfo.", status$STATUS2))))
+
+
+
+dat.status$value <- rep(status$n, each = 51)
+
+round(status$n/sum(status$n)*100,2)
+# Tax status by percentage:\n 47% For Profit \n25% Non Profit\n17% Limited Liability Companies\n5% Sole Proprietor/no specific tax status\n3% S Corporations\n0,5% Partnerships\n0,5% Public-benefit Corporations
+
+G_status_packing <- ggplot() +
+  geom_polygon(data = dat.status, 
+               aes(x, y, group = id, fill = value), colour = "black", alpha = 0.6, size = 0.5) +
+  #scale_fill_manual(values = c("#EDF8B1","#7FCDBB","#2C7FB8"), aesthetics = "fill") +
+  #scale_fill_viridis() +
+  scale_fill_distiller(palette = "BuPu", direction = 1) +
+  geom_text(data = status, aes(x, y, size= n, label = label), 
+            color="black", family = "mono") +
+  scale_size_continuous(range = c(0.75,4)) +
+  theme_void() +
+  labs(title = "Tax status of digitally\nfocused local news organizations",
+       subtitle = paste0(sum(status$n)," local news organizations surveyed in the US and Canada"),
+       caption = "Source: Project Oasis | Plot: Sofía Carpio @sofl77\n ") +
+  theme(legend.position = "none",
+        plot.background = element_rect(fill = "ivory",
+                                        color = "ivory"),
+        plot.title = element_text(size = 13, colour = paleta[5], 
+                                  face = "bold", hjust = 0.5,
+                                  family = "mono"),
+        plot.subtitle = element_text(hjust = 0.5, size = 9, 
+                                     color = paleta[5], family = "mono"),
+        plot.caption = element_text(hjust = 1, size = 8, 
+                                    color = paleta[5], family = "mono")) +
+  coord_equal() +
+  annotate(geom = "text", x = -29, y= -21,
+           label = "Tax status by percentage:\n47% For Profit \n25% Non Profit\n17% Limited Liability Companies\n5% Sole Proprietor/no specific\ntax status\n3% S Corporations\n0,5% Partnerships\n0,5% Public-benefit Corporations",
+           size = 2.5, hjust = 0, vjust = 0,
+           lineheight = 0.9, color = paleta[5], family = "mono")
+
+
+
+   
+  
+G_status_packing
+
+ggsave("Tax_status_digital_local_news_annotate_ivory_5.jpeg", width = 5, height = 4.5)
+
+
+
+```
+
+**Data Wrangling for Plot 2**
+
+```{r}
+
+unique(news_orgs$primary_language)
+
+bilingual_spanish <- c("Spanish, English", "Bilingual (Spanish & English)","Spanish")
+
+l <- news_orgs %>%
+  group_by(country, state, primary_language) %>%
+  count()
+
+totalstate <- news_orgs %>%
+  group_by(country, state) %>%
+  count()
+
+colnames(totalstate)[3] <- "total"
+
+LANG_f <- merge(l, totalstate, by = c("country", "state"))
+
+
+LANG_f$percEng <- ifelse(LANG_f$primary_language == "English", LANG_f$n/LANG_f$total,
+                         ifelse(LANG_f$primary_language %in% bilingual_spanish, 1 - (LANG_f$n/LANG_f$total),0))
+
+LANG_f <- LANG_f[-c(which(is.na(LANG_f$primary_language)==TRUE)),]
+
+
+#LANG$color_code <- ifelse(LANG$primary_language == "Spanish & English", paleta2[1],
+ #                          ifelse(LANG$primary_language == "Spanish", paleta2[2], paleta2[3]))
+
+
+table(news_orgs$primary_language, useNA = "ifany")
+
+LANG_f$state[which(LANG_f$country == "U.S. Virgin Islands")] <- "Virgin Islands"
+LANG_f$state[which(is.na(LANG_f$state)==TRUE)] <- "No info"
+
+LANG_ff <- LANG_f[-c(which(duplicated(LANG_f$state) == TRUE)),]
+
+packing <- circleProgressiveLayout(LANG_ff$n, sizetype = 'area')
+packing$radius <- 0.95*packing$radius
+LANG_ff <- cbind(LANG_ff, packing)
+
+dat.gg <- circleLayoutVertices(packing, n=50)
+
+dat.gg$value <- rep(LANG_ff$percEng, each = 51)
+dat.gg$country <- rep(LANG_ff$country, each = 51)
+
+paleta3 <- brewer.pal(10, "Greens")
+barplot(rep(1,10), col = paleta3)
+
+  paleta4 <- brewer.pal(10, "Reds")
+barplot(rep(1,10), col = paleta4)
+
+LANG_ff$label <- LANG_ff$state
+LANG_ff$label[which(LANG_ff$label == "Virgin Islands")] <- "Virgin\nIslands"
+
+G_packing <- ggplot() +
+  geom_polygon(data = dat.gg, aes(x, y, group = id, fill = value, colour = country), alpha = 0.6) +
+  scale_fill_distiller(palette = "YlGnBu", direction = 1) +
+  scale_color_manual(values = c("white","black","black")) +
+  geom_text(data = LANG_ff, aes(x, y, size= n, label = label), color="black") +
+  theme_void() +
+  labs(title = "Digitally focused local news organizations\nby state and primary language",
+       subtitle = paste0(sum(LANG_ff$total)," local news organizations surveyed in the US and Canada"),
+       caption = "Source: Project Oasis | Plot: Sofía Carpio @sofl77\n ") +
+  theme(legend.position = "none",
+        plot.background = element_rect(fill = paleta4[3],
+                                        color = paleta4[3]),
+        plot.title = element_text(size = 16, colour = paleta2[1], 
+                                  face = "bold", hjust = 0.5,
+                                  family = "mono"),
+        plot.subtitle = element_text(hjust = 0.5, size = 10, 
+                                     color = paleta2[1], family = "mono"),
+        plot.caption = element_text(hjust = 0.95, size = 9, 
+                                    color = paleta2[1], family = "mono")) +
+  theme(legend.position = "none") +
+  coord_equal() +
+  annotate(geom = "text", x = -22, y= -22,
+           label = "30 organizations responded that their primary language is Spanish or consider\nthemselves  bilingual (Spanish & English), which amounts to 4% of all the\ndigitally focused local news organizations surveyed. 12 of these are\nlocated in Puerto Rico.\nThe black contour indicates US states, while the white contour, Canadian\nprovinces.",
+           size = 3, hjust = 0, vjust = 0,
+           lineheight = 0.9, color = paleta2[1], family = "mono")
+
+G_packing
+
+ggsave("Primary_language_country_color.jpeg", width = 6.25, height = 7)
+
+```
+
+
