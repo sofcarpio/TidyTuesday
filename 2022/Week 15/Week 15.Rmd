@@ -1,0 +1,301 @@
+---
+title: "Week 15"
+author: "Sofía Carpio"
+date: "4/13/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(tidyverse)
+library(ggExtra)
+library(ggsci)
+library(scales)
+library(showtext)
+library(RColorBrewer)
+```
+
+## Week 15 of Tidy Tuesday
+
+This week's data set contained statistics on deaths from indoor air pollution all around the world. A summary of death rates by subregion and continent is shown below. Caveat: I am assuming these are measured in number of deaths for every 100.000 inhabitants, as the data dictionary was not clear.
+
+**Importing the data**
+
+```{r, echo = T, results='hide'}
+
+indoor_pollution <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-04-12/indoor_pollution.csv')
+
+View(indoor_pollution)
+
+tuesdata <- tidytuesdayR::tt_load('2022-04-12')
+
+death_ts <- tuesdata$death_timeseries
+death_source <- tuesdata$death_source
+fuel_gdp <- tuesdata$fuel_gdp
+death_full <- tuesdata$death_fuel
+
+View(fuel_gdp)
+View(death_full)
+
+country_codes <- readr::read_csv("https://gist.githubusercontent.com/tadast/8827699/raw/f5cac3d42d16b78348610fc4ec301e9234f82821/countries_codes_and_coordinates.csv")
+
+View(country_codes)
+
+```
+
+**Data Wrangling I**
+
+```{r, echo = T, results='hide'}
+
+unique(death_source$Entity)
+unique(death_source$Entity[which(is.na(death_source$Code)==TRUE)])
+
+regions <- c("Africa","America","Asia","Europe","Oceania")
+
+Income_level <- c("World Bank High Income","World Bank Low Income","World Bank Lower Middle Income","World Bank Upper Middle Income")
+
+subregion <- c("Caribbean","Central Latin America","North America","Southern Latin America",
+               "Central Asia","Central Europe","Central sub-Saharan Africa","East Asia","Eastern Europe",
+               "Eastern sub-Saharan Africa","Middle East & North Africa","Southeast Asia","Nordic Region",
+               "Southern sub-Saharan Africa", "Western Europe", "Western sub-Saharan Africa",
+               "South Asia - World Bank region","Oceania","World")
+
+SDI <- c("High-middle SDI","Low SDI","Low-middle SDI","Middle SDI","High SDI")
+
+SDI_deaths <- death_source %>%
+  filter(Entity %in% SDI)
+
+#View(SDI_deaths)
+
+subregion_deaths <- death_source %>%
+  filter(Entity %in% subregion)
+
+#View(subregion)
+
+subregion_deaths$continent <- ifelse(subregion_deaths$Entity %in% c("Caribbean","Central Latin America","North America","Southern Latin America"), "Americas",
+                                     ifelse(subregion_deaths$Entity %in% c("Central Asia","East Asia","Southeast Asia","South Asia - World Bank region"), "Asia",
+                                            ifelse(subregion_deaths$Entity %in% c("Central Europe","Eastern Europe","Western Europe","Nordic Region"),"Europe", 
+                                                                                  ifelse(subregion_deaths$Entity %in% c("Central sub-Saharan Africa","Eastern sub-Saharan Africa","Middle East & North Africa","Southern sub-Saharan Africa","Western sub-Saharan Africa"),"Africa",
+                                                                                         ifelse(subregion_deaths$Entity == "Oceania","Oceania","World")))))
+
+table(subregion_deaths$Entity, subregion_deaths$continent, useNA = "ifany")
+
+```
+
+**Data Wrangling II**
+
+
+```{r}
+
+colnames(subregion_deaths)
+#"Deaths - Cause: All causes - Risk: Household air pollution from solid fuels - Sex: Both - Age: Age-standardized (Rate)"
+
+
+colnames(subregion_deaths)[4] <- "Deaths"
+subregion_deaths$entity <- factor(subregion_deaths$Entity, levels = c("Caribbean",
+                                                                      "Central Latin America","North America",
+                                                                      "Southern Latin America",
+                                                                      "Central Asia","East Asia","Southeast Asia",
+                                                                      "South Asia - World Bank region",
+                                                                      "Central Europe","Eastern Europe","Western Europe","Nordic Region",
+                                                                      "Central sub-Saharan Africa","Eastern sub-Saharan Africa",
+                                                                      "Middle East & North Africa","Southern sub-Saharan Africa",
+                                                                      "Western sub-Saharan Africa","Africa","Oceania","World"))
+
+#"Reds","Greens","Blues"
+#4,4,4,5,1
+
+reds <- brewer.pal(6,"Reds")
+greens <- brewer.pal(6,"Greens")
+blues <- brewer.pal(6,"Blues")
+purples <- brewer.pal(8,"Purples")
+bupu <- brewer.pal(8,"BuPu")
+ylorrd <- brewer.pal(5, "YlOrRd")
+
+paleta <- c(reds,greens,blues,purples,"white",bupu, ylorrd)
+barplot(rep(1,45),col = paleta)
+
+Americas <- subregion_deaths %>%
+  filter(Entity %in% c("Caribbean","Central Latin America","North America","Southern Latin America"))
+
+Asia <- subregion_deaths %>%
+  filter(Entity %in% c("Central Asia","East Asia","Southeast Asia","South Asia - World Bank region"))
+
+Europe <- subregion_deaths %>%
+  filter(Entity %in% c("Central Europe","Eastern Europe","Western Europe","Nordic Region"))
+
+Africa <- subregion_deaths %>%
+  filter(Entity %in% c("Central sub-Saharan Africa","Eastern sub-Saharan Africa",
+                       "Middle East & North Africa","Southern sub-Saharan Africa",
+                       "Western sub-Saharan Africa","Africa"))
+
+
+library(showtext)
+font_add("hydrophilia", "C:/Users/sofia/Downloads/hydrophilia/Hydrophilia/HydrophiliaIced-Regular.ttf")
+font_add("OrelegaOne", "C:/Users/sofia/Downloads/Orelega_One/OrelegaOne-Regular.ttf")
+
+showtext_auto()
+
+
+```
+
+# The final patchwork plot
+
+```{r}
+
+#titles_sizes 
+
+tit <- 19
+sub_cap <- 16
+tit_x <- 12
+tit_y <- 12
+
+G_Americas <- ggplot(data = Americas, 
+            aes(x=Year, y=Deaths,group = entity)) +
+  geom_line(aes(color = entity), size = 1) +
+  scale_color_manual(values = reds[c(2,4:6)], labels = c("Caribbean","Central Latin\nAmerica","North America","Southern Latin\nAmerica")) +
+  scale_x_continuous(breaks = seq(1990,2020,5), expand = c(0,0),
+                     labels = seq(1990,2020,5)) +
+  theme_bw() +
+  labs(title = "Americas",
+       #subtitle = "Number of deaths per 100.000 inhabitants",
+       y= "Number of deaths per\n100.000 inhabitants",
+       color = "Subregion") +
+  theme(#plot.background = element_rect(fill = "ivory",
+         #                               color = "ivory"),
+        plot.margin = margin(rep(15, 4)),
+        plot.title = element_text(hjust = 0.5, size = tit, face = "bold", family = "OrelegaOne"),
+        plot.subtitle = element_text(hjust = 0, size = sub_cap, color = "black", family = "OrelegaOne"),
+        plot.caption = element_text(hjust = 0, size = sub_cap, color = "black", family = "OrelegaOne"),
+        axis.title.x = element_text(size = tit_x, color = "black", family = "OrelegaOne"),
+        axis.title.y = element_text(size = tit_y, color = "black", family = "OrelegaOne"),
+        legend.text = element_text(family = "OrelegaOne"),
+        legend.title = element_text(family = "OrelegaOne"))
+        #axis.text.x = element_text(color = "black", angle = 90))
+  
+G_Asia <- ggplot(data = Asia, 
+            aes(x=Year, y=Deaths,group = entity)) +
+  geom_line(aes(color = entity), size = 1) +
+  scale_color_manual(values = greens[c(2,4:6)], labels = c("Central Asia","East Asia","Southeast Asia","South Asia -\nWB region")) +
+  scale_x_continuous(breaks = seq(1990,2020,5), expand = c(0,0)) +
+  theme_bw() +
+  labs(title = "Asia",
+       #subtitle = "Number of deaths per 100.000 inhabitants",
+       y= "Number of deaths per\n100.000 inhabitants",
+       color = "Subregion") +
+  theme(plot.margin = margin(rep(15, 4)),
+        plot.title = element_text(hjust = 0.5, size = tit, face = "bold",family = "OrelegaOne"),
+        plot.subtitle = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        plot.caption = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        axis.title.x = element_text(size = tit_x, color = "black",family = "OrelegaOne"),
+        axis.title.y = element_text(size = tit_y, color = "black",family = "OrelegaOne"),
+        axis.text = element_text(color = "black"),
+        legend.text = element_text(family = "OrelegaOne"),
+        legend.title = element_text(family = "OrelegaOne"))
+
+G_Europe <- ggplot(data = Europe, 
+            aes(x=Year, y=Deaths,group = entity)) +
+  geom_line(aes(color = entity), size = 1) +
+  scale_color_manual(values = blues[c(2,4:6)]) +
+  scale_x_continuous(breaks = seq(1990,2020,5), expand = c(0,0),
+                     labels = seq(1990,2020,5)) +
+  theme_bw() +
+  labs(title = "Europe",
+       #subtitle = "Number of deaths per 100.000 inhabitants",
+       y= "Number of deaths per\n100.000 inhabitants",
+       color = "Subregion") +
+  theme(plot.margin = margin(rep(15, 4)),
+        plot.title = element_text(hjust = 0.5, size = tit, face = "bold",family = "OrelegaOne"),
+        plot.subtitle = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        plot.caption = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        axis.title.x = element_text(size = tit_x, color = "black",family = "OrelegaOne"),
+        axis.title.y = element_text(size = tit_y, color = "black",family = "OrelegaOne"),
+        legend.text = element_text(family = "OrelegaOne"),
+        legend.title = element_text(family = "OrelegaOne"))
+        #axis.text.x = element_text(color = "black", angle = 90))
+
+G_Africa <- ggplot(data = Africa, 
+            aes(x=Year, y=Deaths,group = entity)) +
+  geom_line(aes(color = entity), size = 1) +
+  scale_color_manual(values = bupu[c(2,4,5,7,8)], labels= c("Central\nsub-Saharan A.","Eastern\nsub-Saharan A.",
+                       "Middle East &\nNorth Africa","Southern\nsub-Saharan A.",
+                       "Western\nsub-Saharan A.")) +
+  scale_x_continuous(breaks = seq(1990,2020,5), expand = c(0,0),
+                     labels = seq(1990,2020,5)) +
+  theme_bw() +
+  labs(title = "Africa",
+       #subtitle = "Number of deaths per 100.000 inhabitants",
+       y= "Number of deaths per\n100.000 inhabitants",
+       color = "Subregion") +
+  theme(plot.title = element_text(hjust = 0.5, size = tit, face = "bold",family = "OrelegaOne"),
+        plot.subtitle = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        plot.caption = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        axis.title.x = element_text(size = tit_x, color = "black",family = "OrelegaOne"),
+        axis.title.y = element_text(size = tit_y, color = "black",family = "OrelegaOne"),
+        legend.text = element_text(family = "OrelegaOne"),
+        legend.title = element_text(family = "OrelegaOne"))
+        #axis.text.x = element_text(color = "black", angle = 90))
+  
+
+G_Oceania <- ggplot(data = subregion_deaths[subregion_deaths$Entity == "Oceania",], 
+            aes(x=Year, y=Deaths,group = entity)) +
+  geom_line(aes(color = entity), size = 1) +
+  scale_color_manual(values = ylorrd[2]) +
+  scale_x_continuous(breaks = seq(1990,2020,5), expand = c(0,0),
+                     labels = seq(1990,2020,5)) +
+  theme_bw() +
+  labs(title = "Oceania",
+       #subtitle = "Number of deaths per 100.000 inhabitants",
+       y= "Number of deaths per\n100.000 inhabitants",
+       color = "Subregion") +
+  theme(plot.title = element_text(hjust = 0.5, size = tit, face = "bold",family = "OrelegaOne"),
+        plot.subtitle = element_text(hjust = 0, size = sub_cap, color = "black", family = "OrelegaOne"),
+        plot.caption = element_text(hjust = 0, size = sub_cap, color = "black", family = "OrelegaOne"),
+        axis.title.x = element_text(size = tit_x, color = "black", family = "OrelegaOne"),
+        axis.title.y = element_text(size = tit_y, color = "black",family = "OrelegaOne"),
+        legend.position = "none")
+        #axis.text.x = element_text(color = "black", angle = 90))
+
+G_World <- ggplot(data = subregion_deaths[subregion_deaths$Entity == "World",], 
+            aes(x=Year, y=Deaths,group = entity)) +
+  geom_line(aes(color = entity), size = 1) +
+  scale_color_manual(values = "grey") +
+  scale_x_continuous(breaks = seq(1990,2020,5), expand = c(0,0),
+                     labels = seq(1990,2020,5)) +
+  theme_bw() +
+  labs(title = "World",
+       #subtitle = "Number of deaths per 100.000 inhabitants",
+       y= "Number of deaths per\n100.000 inhabitants",
+       color = "Subregion") +
+  theme(plot.title = element_text(hjust = 0.5, size = tit, face = "bold",family = "OrelegaOne"),
+        plot.subtitle = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        plot.caption = element_text(hjust = 0, size = sub_cap, color = "black",family = "OrelegaOne"),
+        axis.title.x = element_text(size = tit_x, color = "black",family = "OrelegaOne"),
+        axis.title.y = element_text(size = tit_y, color = "black",family = "OrelegaOne"),
+        legend.position = "none")
+        #axis.text.x = element_text(color = "black", angle = 90))
+  
+library(patchwork)
+
+G_total <- (G_Africa + G_Asia + G_Americas)/(G_Europe + G_Oceania + G_World)
+
+G_final <- G_total + plot_annotation(
+  title = "Deaths from indoor air pollution by continent between 1990 and 2019",
+  subtitle = "The rate of deaths from indoor pollution have experienced a decline in all regions of the world since 1990, with the exception of\na small increase during the early 1990s in Eastern Europe, Souther sub-Saharan Africa and Central Asia.",
+  caption = "Source: Our World in Data | Plot: Sofía Carpio @Sofl77",
+  theme = theme(plot.title = element_text(size = 30, hjust = 0.5))) &
+  theme(text = element_text('OrelegaOne'))
+
+G_final
+
+```
+
+
+
+
+
