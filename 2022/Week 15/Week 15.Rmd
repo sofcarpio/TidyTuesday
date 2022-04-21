@@ -248,6 +248,7 @@ G_Oceania <- ggplot(data = subregion_deaths[subregion_deaths$Entity == "Oceania"
   scale_color_manual(values = ylorrd[2]) +
   scale_x_continuous(breaks = seq(1990,2020,5), expand = c(0,0),
                      labels = seq(1990,2020,5)) +
+  scale_y_continuous(limits = c(0,250)) +
   theme_bw() +
   labs(title = "Oceania",
        #subtitle = "Number of deaths per 100.000 inhabitants",
@@ -286,9 +287,9 @@ G_total <- (G_Africa + G_Asia + G_Americas)/(G_Europe + G_Oceania + G_World)
 
 G_final <- G_total + plot_annotation(
   title = "Deaths from indoor air pollution by continent between 1990 and 2019",
-  subtitle = "The rate of deaths from indoor pollution have experienced a decline in all regions of the world since 1990, with the exception of\na small increase during the early 1990s in Eastern Europe, Souther sub-Saharan Africa and Central Asia.",
+  subtitle = "The rate of deaths from indoor pollution have experienced a decline in all regions of the world since 1990, with the exception of a small increase during the early 1990s in\nEastern Europe, Southern sub-Saharan Africa and Central Asia. Number of deaths per 100.000 inhabitants remain above 100 in Central, Eastern and Western sub-Saharan Africa and Oceania.",
   caption = "Source: Our World in Data | Plot: Sofía Carpio @Sofl77",
-  theme = theme(plot.title = element_text(size = 30, hjust = 0.5))) &
+  theme = theme(plot.title = element_text(size = 30))) &
   theme(text = element_text('OrelegaOne'))
 
 G_final
