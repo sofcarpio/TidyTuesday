@@ -1,0 +1,220 @@
+---
+title: "Week 19"
+author: "Sofía Carpio"
+date: '2022-06-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidytuesdayR)
+library(dplyr)
+library(ggplot2)
+library(ggthemes)
+library(lubridate)
+library(tidyverse)
+library(ggExtra)
+library(ggsci)
+library(scales)
+library(showtext)
+library(RColorBrewer)
+library(viridis)
+#install.packages("ggraph")
+library(ggraph)
+library(igraph)
+#install.packages("packcircles")
+library(packcircles)
+#install.packages("ggiraph")
+library(ggiraph)
+library(extrafont)
+
+```
+
+## R Markdown
+
+Below you may find the code for the making of the plot for Tidy Tuesday's Week 19. This data set contains the NY Times Bestselling Books list from 1931 to 2020. Variables include book title, author, year, total number of weeks spent on the best sellers list, the date it entered the list and others. I was interested in looking at how many titles made the list over the years and what was the mean as well as the maximum total number of weeks spent on the list. 
+
+
+```{r}
+TT_W19 <- tidytuesdayR::tt_load(2022, week = 19)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+
+titles <- TT_W19$nyt_titles
+
+plot(titles$year, titles$total_weeks)
+
+table(titles$year, useNA = "ifany")
+table(titles$author, useNA = "ifany")
+
+mean(titles$total_weeks, na.rm = TRUE)
+
+mean_by_author <- titles %>%
+  group_by(author) %>%
+  summarise(mean = mean(total_weeks))
+
+
+which(titles$total_weeks == max(titles$total_weeks))
+titles[2607,]
+
+mean_by_year <- titles %>%
+  group_by(year) %>%
+  summarise(mean = mean(total_weeks))
+
+titles_by_year <- titles %>%
+  group_by(year) %>%
+  tally()
+
+max_by_year <- titles %>%
+  group_by(year) %>%
+  summarise(max = max(total_weeks))
+
+merge(l, totalstate, by = c("country", "state"))
+
+ny_bestsellers_yr <- merge(mean_by_year, titles_by_year, by = "year")
+
+ny_bestsellers_yr <- merge(ny_bestsellers_yr, max_by_year, by = "year")
+
+
+```
+
+#Graphs
+
+```{r}
+
+#Font:
+
+loadfonts(device = "win")
+windowsFonts()
+
+#Color Palette
+
+library(RColorBrewer)
+
+
+
+G_NY_bestsellers_mean <- ggplot(data = ny_bestsellers_yr) +
+  geom_bar(aes(x = year, y = n), stat = "identity", 
+           fill = "deepskyblue3", color = "black", alpha = 0.7) +
+  geom_line(aes(x = year, y = mean*10), color = "firebrick", size = 1) +
+  scale_y_continuous(name = "Number of best-selling titles",
+                     sec.axis = sec_axis( ~./10, name = "Mean number of weeks on the list"),
+                     expand = c(0,0), limits = c(0,250)) +
+ scale_x_continuous(breaks = seq(1930,2020,10),expand = c(0,0)) +
+  theme_bw() +
+  labs(title = "The NY Times bestsellers list by year:",
+       subtitle = "On average how much time on the list?\n",
+       x = "Year",
+       caption = "Source: Post45 Data, via Sara Stoudt\nPlot: Sofía Carpio @sofl77") +
+  theme(plot.background = element_rect(fill = "ivory",
+                                        color = "ivory"),
+        panel.background = element_rect(fill = "ivory",
+                                        color = "ivory")) +
+  theme(plot.title = element_text(size = 18, colour = "gray8",
+                                  face = "bold", hjust = 0.5,
+                                  family = "mono"), 
+        plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold",
+                                     color = "gray40", family = "mono"),
+        axis.title.x = element_text(hjust = 0.5, size = 11,
+                                     color = "gray40", family = "mono",
+                                    face = "bold"),
+        axis.title.y.left = element_text(hjust = 0.5, size = 11,
+                                     color = "steelblue3", family = "mono",
+                                     face = "bold"),
+        axis.title.y.right = element_text(hjust = 0.5, size = 11,
+                                     color = "firebrick", family = "mono",
+                                     face = "bold"),
+        plot.caption = element_text(hjust = 1, size = 9, color = "black", 
+                                    family = "mono"))
+
+ggsave("GitHub/TidyTuesday/2022/Week 19/Mean_nber_weeks_resized2.jpeg", width = 7, height = 5.75)
+
+
+
+G_NY_bestsellers_max <- ggplot(data = ny_bestsellers_yr, aes(x = year)) +
+  geom_bar(aes(y = n), stat = "identity", 
+           fill = "steelblue3", color = "black", alpha = 0.7) +
+  geom_line(aes(y = max*2), color = "goldenrod1", size = 1) +
+  scale_y_continuous(name = "Number of bestselling titles",
+                     sec.axis = sec_axis( ~./2, name = "Maximum number of weeks\non the list"),
+                     expand = c(0,0), limits = c(0,400)) +
+  scale_x_continuous(breaks = seq(1930,2020,10),expand = c(0,0)) +
+  theme_bw() +
+  labs(title = "The NY Times bestsellers list by year:",
+       subtitle = "What is the longest a title has been on the list?\n",
+       x = "Year",
+       caption = "Source: Post45 Data, via Sara Stoudt\nPlot: Sofía Carpio @sofl77\n \nNote: There are a total of 78 books that spent more than a year (52 weeks)\non the bestselling books' list. This explains maximum values\n that exceed a year.") +
+  theme(plot.background = element_rect(fill = "ivory",
+                                        color = "ivory"),
+        panel.background = element_rect(fill = "ivory",
+                                        color = "ivory")) +
+  theme(plot.title = element_text(size = 18, colour = "gray8",
+                                  face = "bold", hjust = 0.5,
+                                  family = "mono"), 
+        plot.subtitle = element_text(hjust = 0.5, size = 12, face = "bold",
+                                     color = "gray40", family = "mono"),
+        axis.title.x = element_text(hjust = 0.5, size = 11,
+                                     color = "gray40", family = "mono",
+                                    face = "bold"),
+        axis.title.y.left = element_text(hjust = 0.5, size = 11,
+                                     color = "steelblue3", family = "mono",
+                                     face = "bold"),
+        axis.title.y.right = element_text(hjust = 0.5, size = 11,
+                                     color = "goldenrod", family = "mono",
+                                     face = "bold"),
+        plot.caption = element_text(hjust = 1, size = 9, color = "black", 
+                                    family = "mono"))
+
+
+ggsave("GitHub/TidyTuesday/2022/Week 19/Maximum_nber_weeks.jpeg", width = 7, height = 6)
+
+
+```
+
+Table with the title and author of the book that spent the maximum number of weeks on the best sellers list, by year.
+
+```{r}
+
+listaf <- list(-999)
+s <- seq(1931,2020,1)
+
+for(i in 1:90){
+  listaf[[i]] <- titles$title[which(titles$total_weeks == max_by_year$max[i] & titles$year == s[i])]
+}
+
+Bestsellers_yr <- do.call(rbind.data.frame,listaf)
+dim(Bestsellers_yr)
+colnames(Bestsellers_yr) <- c("Title","Title")
+
+lista <- list(-99)
+
+for(i in 1:90){
+  lista[[i]] <- titles$author[which(titles$title == Bestsellers_yr$Title[i])]
+}
+
+d <- do.call(rbind.data.frame, lista)
+
+Bestsellers_yr$Author <- d$c..Pearl.Buck....Charles.Morgan....Hervey.Allen....James.Hilton...
+
+Bestsellers_yr <- Bestsellers_yr[,c(1,3)]
+dim(Bestsellers_yr)
+
+max_by_year$max[max_by_year$year == 1932]
+titles[which(titles$total_weeks == 18 & titles$year == 1932),]
+
+Bestsellers_yr$Year <- s
+Bestsellers_yr <- Bestsellers_yr[,c(3,1,2)]
+
+df <- as.data.frame(y)
+
+
+
+
+```
+
